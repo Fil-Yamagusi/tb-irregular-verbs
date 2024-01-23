@@ -491,19 +491,19 @@ def handle_loc_b(m: Message):
                 m, f"<b>Кэт:</b>\n"
                    f"👍🏻 <i>{choice(right_answer)}</i>",
                 parse_mode="HTML")
-            if randint(0, 12) == 1:
+            if randint(0, 8) == 1:
                 users[uid]['p_hearing'] += 1
                 bot.send_message(
                     m.from_user.id, "♦️ Слух и слуховая память: +1")
-            if randint(0, 12) == 1:
+            if randint(0, 8) == 1:
                 users[uid]['p_vision'] += 1
                 bot.send_message(
                     m.from_user.id, "♦️ Зрение и зрительная память: +1")
-            if randint(0, 10) == 1:
+            if randint(0, 8) == 1:
                 users[uid]['p_dexterity'] += 1
                 bot.send_message(
                     m.from_user.id, "♦️ Ловкость и мышечная память: +1")
-            if randint(0, 10) == 1:
+            if randint(0, 8) == 1:
                 users[uid]['p_logic'] += 1
                 bot.send_message(
                     m.from_user.id, "♦️ Логическая память: +1")
@@ -513,19 +513,19 @@ def handle_loc_b(m: Message):
                 m, f"🤦🏼‍♀️ <b>Кэт:</b>\n"
                    f"<i>Нет. Правильно: {correct_answer}</i>",
                 parse_mode="HTML")
-            if randint(0, 10) == 1:
+            if randint(0, 9) == 1:
                 users[uid]['p_hearing'] -= 1
                 bot.send_message(
                     m.from_user.id, "⚡️ Слух и слуховая память: -1")
-            if randint(0, 10) == 1:
+            if randint(0, 9) == 1:
                 users[uid]['p_vision'] -= 1
                 bot.send_message(
                     m.from_user.id, "⚡️ Зрение и зрительная память: -1")
-            if randint(0, 8) == 1:
+            if randint(0, 9) == 1:
                 users[uid]['p_dexterity'] -= 1
                 bot.send_message(
                     m.from_user.id, "⚡️ Ловкость и мышечная память: -1")
-            if randint(0, 8) == 1:
+            if randint(0, 9) == 1:
                 users[uid]['p_logic'] -= 1
                 bot.send_message(
                     m.from_user.id, "⚡️ Логическая память: -1")
@@ -657,19 +657,19 @@ def handle_loc_c(m: Message):
                 m, f"<b>Кэт:</b>\n"
                    f"👍🏻 <i>{choice(right_answer)}</i>",
                 parse_mode="HTML")
-            if randint(0, 11) == 1:
+            if randint(0, 10) == 1:
                 users[uid]['p_hearing'] += 2
                 bot.send_message(
                     m.from_user.id, "♦️♦️ Слух и слуховая память: +2")
-            if randint(0, 11) == 1:
+            if randint(0, 10) == 1:
                 users[uid]['p_vision'] += 2
                 bot.send_message(
                     m.from_user.id, "♦️♦️ Зрение и зрительная память: +2")
-            if randint(0, 11) == 1:
+            if randint(0, 10) == 1:
                 users[uid]['p_dexterity'] += 2
                 bot.send_message(
                     m.from_user.id, "♦️♦️ Ловкость и мышечная память: +2")
-            if randint(0, 11) == 1:
+            if randint(0, 10) == 1:
                 users[uid]['p_logic'] += 2
                 bot.send_message(
                     m.from_user.id, "♦️♦️ Логическая память: +2")
