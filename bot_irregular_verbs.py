@@ -109,11 +109,11 @@ def check_user(uid: int, restart=False) -> bool:
         zero_params = [
             # Основные rpg-параметры.
             'p_hearing', 'p_vision', 'p_dexterity', 'p_logic',
-            # Номер последнего заданного вопроса в локации a (1)
-            # Номер последнего заданного глагола из verbs в локации b (2)
-            # Номер последнего заданного глагола из verbs в локации c (3)
+            # Номер последнего заданного вопроса в локации a (1),
+            # номер последнего заданного глагола из verbs в локации b (2),
+            # номер последнего заданного глагола из verbs в локации c (3).
             'q_loc_a', 'q_loc_b', 'q_loc_c',
-            # Сколько уже ответил вопросов в локациях b и c. И сколько правильно.
+            # Сколько уже ответил вопросов в локациях b, c. И сколько правильно.
             'q_num_b', 'q_num_b_ok', 'q_num_c', 'q_num_c_ok'
         ]
         users[uid] = {}
@@ -359,6 +359,8 @@ def handle_change_location(m: Message):
 
 
 """ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa """
+
+
 def handle_loc_a(m: Message):
     """Локация a - "Перед школой". Теоретические вопросы"""
     uid = m.from_user.id
@@ -429,6 +431,8 @@ def handle_loc_a(m: Message):
 
 
 """ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb """
+
+
 def handle_loc_b(m: Message):
     """Локация b - "Кабинет химии". Теоретические вопросы"""
     uid = m.from_user.id
@@ -502,7 +506,7 @@ def handle_loc_b(m: Message):
             if randint(0, 10) == 1:
                 users[uid]['p_logic'] += 1
                 bot.send_message(
-                m.from_user.id, "♦️ Логическая память: +1")
+                    m.from_user.id, "♦️ Логическая память: +1")
         # Если неправильно ответил,
         else:
             bot.reply_to(
@@ -512,19 +516,19 @@ def handle_loc_b(m: Message):
             if randint(0, 10) == 1:
                 users[uid]['p_hearing'] -= 1
                 bot.send_message(
-                m.from_user.id, "⚡️ Слух и слуховая память: -1")
+                    m.from_user.id, "⚡️ Слух и слуховая память: -1")
             if randint(0, 10) == 1:
                 users[uid]['p_vision'] -= 1
                 bot.send_message(
-                m.from_user.id, "⚡️ Зрение и зрительная память: -1")
+                    m.from_user.id, "⚡️ Зрение и зрительная память: -1")
             if randint(0, 8) == 1:
                 users[uid]['p_dexterity'] -= 1
                 bot.send_message(
-                m.from_user.id, "⚡️ Ловкость и мышечная память: -1")
+                    m.from_user.id, "⚡️ Ловкость и мышечная память: -1")
             if randint(0, 8) == 1:
                 users[uid]['p_logic'] -= 1
                 bot.send_message(
-                m.from_user.id, "⚡️ Логическая память: -1")
+                    m.from_user.id, "⚡️ Логическая память: -1")
 
     # В этой локации берём несколько случайных номеров глаголов из таблицы
     # Варианты ответа перемешиваются.
@@ -540,7 +544,7 @@ def handle_loc_b(m: Message):
         resize_keyboard=True
     )
     # Если достаточно много отвечал, то разрешаем выходить
-    # Для отладки вместо 10 можно поставить 1, но потом вернуть 10!
+    # Для отладки вместо 10 поставить 1, но потом вернуть 10!
     if users[uid]['q_num_b'] > 10:
         markup_answers.add('Хватит')
 
@@ -566,6 +570,8 @@ def handle_loc_b(m: Message):
 
 
 """ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc """
+
+
 def handle_loc_c(m: Message):
     """Локация c - "Кабинет английского". По одной форме назвать другую"""
     uid = m.from_user.id
@@ -607,12 +613,11 @@ def handle_loc_c(m: Message):
             reply_markup=keyboard_continue
         )
 
-        # Если все параметры ненулевые, то идём на экзамен
+        # Если все параметры ненулевые, то идём на экзамен.
         if (users[uid]['p_hearing']
                 and users[uid]['p_vision']
                 and users[uid]['p_dexterity']
-                and users[uid]['p_logic']
-        ):
+                and users[uid]['p_logic']):
             users[uid]['next_location'] = 'd'
             bot.register_next_step_handler(msg, handle_change_location)
         # иначе ПРОИГРЫШ
@@ -633,8 +638,8 @@ def handle_loc_c(m: Message):
             bot.register_next_step_handler(msg, handle_fail)
         return
 
-    # Если мы только зашли, то задаём вопрос
-    # Если многовато вопросов, то предлагаем выйти
+    # Если мы только зашли, то задаём вопрос.
+    # Если многовато вопросов, то предлагаем выйти.
     if m.text != menu_continue['continue']:
         answers_q_num = verbs[users[uid]['q_loc_c']]
         # print(f"{answers_q_num = }")
@@ -714,7 +719,7 @@ def handle_loc_c(m: Message):
     markup_answers.add('Хватит')
 
     # Если достаточно много отвечал, то разрешаем выходить
-    # Для отладки вместо 10 можно поставить 1, но потом вернуть 10!
+    # Для отладки вместо 10 поставить 1, но потом вернуть 10!
     reply_markup_c = hideKeyboard
     if users[uid]['q_num_c'] > 10:
         reply_markup_c = markup_answers
@@ -735,6 +740,8 @@ def handle_loc_c(m: Message):
 
 
 """ ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd """
+
+
 def handle_loc_d(m: Message):
     """Локация d - ЗКЗАМЕН! Подводим итоги!"""
     uid = m.from_user.id
