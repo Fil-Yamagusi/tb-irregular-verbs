@@ -421,7 +421,7 @@ def handle_loc_a(m: Message):
         q_caption = ""
     msg = bot.send_message(
         m.from_user.id,
-        f"{q_caption}{question["q"]}",
+        f"{q_caption}{question['q']}",
 
         parse_mode="HTML",
         reply_markup=markup_answers
