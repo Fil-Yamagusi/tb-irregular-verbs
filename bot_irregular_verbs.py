@@ -10,7 +10,7 @@ FC: Irregular Verbs Exam
 https://t.me/fil_fc_irregular_verbs_bot
 6414363219:AAFIznT89_9QZQNWAhFC4UqOqTaCxnZalhU
 """
-__version__ = '0.2'
+__version__ = '0.3'
 __author__ = 'Firip Yamagusi'
 
 # Для рандома внутри квеста
@@ -140,8 +140,9 @@ def show_random_picture(
         msg: Message, prefix: str, n_from: int, n_to: int, capt: str):
     """Показываем случайную картинку из нескольких для данного случая"""
 
-    pic = f'pic/{prefix}-' + str(randint(n_from, n_to)) + '.jpg'
-    with open(pic, 'rb') as pic_file:
+    # Было красивее, но python7 masterhost ругается
+    pict = f"pic/{prefix}-" + str(randint(n_from, n_to)) + ".jpg"
+    with open(pict, 'rb') as pic_file:
         bot.send_photo(
             msg.from_user.id,
             pic_file,
@@ -193,7 +194,8 @@ def handle_play(m: Message):
     if m.text in list(rpg_classes.values()):
         users[uid]['rpg_class'] = \
             [k for k, v in rpg_classes.items() if v == m.text][0]
-        print(f"{uid = }, {users[uid]['rpg_class'] = }")
+        # {var_name = } is not compatible with 3.7
+        # print(f"{uid = }, {users[uid]['rpg_class'] = }")
 
         show_random_picture(
             m, f"rpg_class_{users[uid]['rpg_class']}", 1, 4,
@@ -752,9 +754,10 @@ def handle_loc_d(m: Message):
     # Процент правильных ответов в твух форматах
     res_loc_b = 100 * users[uid]['q_num_b_ok'] // (users[uid]['q_num_b'] - 1)
     res_loc_c = 100 * users[uid]['q_num_c_ok'] // (users[uid]['q_num_c'] - 1)
-    print(f"{users[uid]['q_num_b'] = }, {users[uid]['q_num_b_ok'] = }, "
-          f"{users[uid]['q_num_c'] = }, {users[uid]['q_num_c_ok'] = }, "
-          f"{res_loc_b = }, {res_loc_c = }")
+    # {var_name = } is not compatible with 3.7
+    # print(f"{users[uid]['q_num_b'] = }, {users[uid]['q_num_b_ok'] = }, "
+    #       f"{users[uid]['q_num_c'] = }, {users[uid]['q_num_c_ok'] = }, "
+    #       f"{res_loc_b = }, {res_loc_c = }")
 
     # Если отвечал наугад глаголы, то не пускать на экзамен
     if res_loc_b < 50 and res_loc_c < 50:
@@ -956,12 +959,14 @@ def handle_loc_d3(m: Message):
         # Для рандомного списка глаголов в следующей фразе.
         many_verbs = [z for x in verbs for z in x[0:2]]
         shuffle(many_verbs)
+        many_many_verbs = ", ".join(many_verbs[0:100])
 
         if (key_param + bonus_b + bonus_c) >= randint(1, 20):
+
             msg = bot.send_message(
                 m.from_user.id,
                 f"Длинный список глаголов, как длинный питон: "
-                f"<i>{", ".join(many_verbs[0:100])}</i>... \n\n"
+                f"<i>{many_many_verbs}</i>... \n\n"
                 f"🤘🏻 А-а-а-а-а! И вот последняя точка! Стоило ли волноваться? "
                 f"Все формы понятны, опечаток нет! Without a doubt, "
                 f"this is a victory!",
@@ -977,7 +982,7 @@ def handle_loc_d3(m: Message):
                 m.from_user.id,
                 f"Грусть-тоска... Ты начинаешь считать ворон за окном. "
                 f"Вот как тут можно понять что есть что: "
-                f"<i>{", ".join(many_verbs[0:100])}</i>?!\n\n"
+                f"<i>{many_many_verbs}</i>?!\n\n"
                 f"Надо было готовиться лучше и выспаться. Знать имя-отчество "
                 f"преподавателя недостаточно!",
 
