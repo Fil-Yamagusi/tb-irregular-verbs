@@ -13,6 +13,7 @@ https://t.me/fil_fc_irregular_verbs_bot
 __version__ = '0.2'
 __author__ = 'Firip Yamagusi'
 
+# Для рандома внутри квеста
 from time import time, strftime
 from random import seed, randint, shuffle, choice
 
@@ -21,7 +22,7 @@ from telebot import types
 from telebot.types import Message
 import sqlite3
 
-import db_functions
+from db_functions import create_tables, insert_record
 # Опросник для локации "Перед школой" (1 из 4)
 from questions_loc_a import questions_a
 # Сами неправильные глаголы "Перед экзаменом" (2, 3 из 4)
@@ -29,33 +30,30 @@ from questions_loc_b import verbs
 # RPG-элементы квеста
 from data import rpg_classes, rpg_items
 # Массивы фрагментов для рандомизации фраз
-from data import teacher_names, right_answer, spooky
+from data import teacher_names, right_answer, three_forms, spooky
 from data import how, why, friends, caricature
 
 TOKEN = "6414363219:AAFIznT89_9QZQNWAhFC4UqOqTaCxnZalhU"
 bot_name = "FC: Irregular Verbs Exam | @fil_fc_irregular_verbs_bot"
+# Для понимания в консоли
 print(strftime("%F %T"))
 print(bot_name)
-print(TOKEN)
+print(TOKEN, "\n")
 
 bot = TeleBot(TOKEN)
 
-# Рандомно запускаем рандом для Великого бога RPG-рандома
+# Рандомно запускаем рандом для Великого бога RPG-рандома.
 seed(time())
 
 # Для простого хранения некоторых данных, чтобы не бегать в БД.
 users = {}
 
-# Создаём подключение к базе данных (файл berlin1884.db будет создан)
-db = 'iv_score.db'
-db_conn = sqlite3.connect(db, check_same_thread=False)
-dbc = db_conn.cursor()
+# Создаём подключение к базе данных (файл iv_score.db будет создан).
+db_conn = sqlite3.connect('iv_score.db', check_same_thread=False)
 
 # Создаём таблицу Users для хранения параметров пользователей
-db_functions.create_users(dbc)
+create_tables(db_conn)
 
-# Создаём таблицу Cheat_sheets для хранения шпаргалок всех пользователей
-db_functions.create_users(dbc)
 
 # Пустое меню, может пригодиться
 hideKeyboard = types.ReplyKeyboardRemove()
@@ -63,7 +61,7 @@ hideKeyboard = types.ReplyKeyboardRemove()
 # Основное меню
 menu_main = {
     'play': 'Начать игру',
-    'help': 'Помощь',
+    'help': 'Справка',
 }
 keyboard_main = types.ReplyKeyboardMarkup(
     row_width=2,
@@ -82,7 +80,7 @@ keyboard_yes_no = types.ReplyKeyboardMarkup(
 )
 keyboard_yes_no.add(*menu_yes_no.values())
 
-# Однокнопочное меню Продолжаем. Для перемещения между локациями
+# Однокнопочное меню Продолжаем. Чтобы успели прочитать сообщения.
 menu_continue = {
     'continue': 'Продолжаем!',
 }
@@ -92,7 +90,7 @@ keyboard_continue = types.ReplyKeyboardMarkup(
 )
 keyboard_continue.add(*menu_continue.values())
 
-# Однокнопочное меню Смирения. Для тупиковых положений
+# Однокнопочное меню Смирения. Для тупиковых положений.
 menu_shtosh = {
     'shtosh': 'Ну штош...',
 }
@@ -106,50 +104,32 @@ keyboard_shtosh.add(*menu_shtosh.values())
 def check_user(uid: int, restart=False) -> bool:
     """Добавляем пользователя во временный словарь, чтобы БД не мучить"""
     global users
-    if uid not in users:
-        users[uid] = {}
-        users[uid]['rpg_class'] = 'geek'
-        users[uid]['p_hearing'] = 0
-        users[uid]['p_vision'] = 0
-        users[uid]['p_dexterity'] = 0
-        users[uid]['p_logic'] = 0
 
+    if uid not in users or restart:
+        zero_params = [
+            # Основные rpg-параметры.
+            'p_hearing', 'p_vision', 'p_dexterity', 'p_logic',
+            # Номер последнего заданного вопроса в локации a (1)
+            # Номер последнего заданного глагола из verbs в локации b (2)
+            # Номер последнего заданного глагола из verbs в локации c (3)
+            'q_loc_a', 'q_loc_b', 'q_loc_c',
+            # Сколько уже ответил вопросов в локациях b и c. И сколько правильно.
+            'q_num_b', 'q_num_b_ok', 'q_num_c', 'q_num_c_ok'
+        ]
+        users[uid] = {}
         # Название локации, в которой данный пользователь
         users[uid]['next_location'] = 'a'
-        # Номер последнего заданного вопроса в локации a (1)
-        users[uid]['q_loc_a'] = 0
-        # Номер последнего заданного глагола из verbs в локации b (2)
-        users[uid]['q_loc_b'] = 0
-        # Количество уже отвеченных вопросов в локации b, и сколько правильно
-        users[uid]['q_num_b'] = 0
-        users[uid]['q_num_b_ok'] = 0
-        # Номер последнего заданного глагола из verbs в локации c (3)
-        users[uid]['q_loc_c'] = 0
-        # номера форм выбранного глагола: заданная и требуемая
-        users[uid]['q_loc_c_q'] = 1
-        users[uid]['q_loc_c_a'] = 2
-        # Количество уже отвеченных вопросов в локации c, и сколько правильно
-        users[uid]['q_num_c'] = 0
-        users[uid]['q_num_c_ok'] = 0
+        users[uid]['rpg_class'] = 'geek'
+        for z in zero_params:
+            users[uid][z] = 0
+        users[uid]['item_is_used'] = 0
         return False
-    else:
-        if restart:
-            users[uid]['next_location'] = 'a'
-            users[uid]['q_loc_a'] = 0
-            users[uid]['q_loc_b'] = 0
-            users[uid]['q_num_b'] = 0
-            users[uid]['q_num_b_ok'] = 0
-            users[uid]['q_loc_c'] = 0
-            users[uid]['q_loc_c_q'] = 1
-            users[uid]['q_loc_c_a'] = 2
-            users[uid]['q_num_c'] = 0
-            users[uid]['q_num_c_ok'] = 0
-        return True
 
 
 def normalize_rpg_params(uid: int) -> None:
     """RPG-параметры должны быть от 0 до 20"""
     global users
+
     users[uid]['p_hearing'] = min(max(0, users[uid]['p_hearing']), 20)
     users[uid]['p_vision'] = min(max(0, users[uid]['p_vision']), 20)
     users[uid]['p_dexterity'] = min(max(0, users[uid]['p_dexterity']), 20)
@@ -157,13 +137,14 @@ def normalize_rpg_params(uid: int) -> None:
 
 
 def show_random_picture(
-        msg: Message, prefix: str, n_from: int, n_to: int, capt: str
-) -> None:
+        msg: Message, prefix: str, n_from: int, n_to: int, capt: str):
+    """Показываем случайную картинку из нескольких для данного случая"""
+
     pic = f'pic/{prefix}-' + str(randint(n_from, n_to)) + '.jpg'
     with open(pic, 'rb') as pic_file:
-        print(pic)
         bot.send_photo(
-            msg.from_user.id, pic_file,
+            msg.from_user.id,
+            pic_file,
             caption=capt)
 
 
@@ -173,28 +154,7 @@ def handle_start(m: Message):
     uid = m.from_user.id
     check_user(uid, restart=True)
     global users
-    global db, db_conn, dbc
-    print(f"{m.text = }")
-
-    try:
-        dbc.execute('SELECT uid '
-                    'FROM Users '
-                    'WHERE uid=? LIMIT 1', (uid,))
-        user_db = dbc.fetchone()
-
-        # Если пользователь существует в базе, то берём оттуда.
-        if user_db:
-            pass
-        # Иначе добавляем пользователя.
-        else:
-            dbc.execute("INSERT INTO Users "
-                        "(uid) "
-                        "VALUES (?)",
-                        (m.from_user.id,))
-            print(f"Пользователь {uid} СОЗДАН. ")
-            db_conn.commit()
-    except sqlite3.Error:
-        print("Ошибка при добавлении нового пользователя")
+    # print(f"{m.text = }")
 
     show_random_picture(
         m, "start", 1, 3,
@@ -227,51 +187,41 @@ def handle_play(m: Message):
     uid = m.from_user.id
     check_user(uid, restart=True)
     global users
-    global db, db_conn, dbc
-    print(f"{m.text = }")
+    # print(f"handle_play {m.text = }")
 
-    # Пользователь нажал на один из rpg-классов. Картинка и просим подтвердить
-    print(f"{rpg_classes.values() = }")
+    # Пользователь нажал на один из rpg-классов. Показываем его картинку.
     if m.text in list(rpg_classes.values()):
         users[uid]['rpg_class'] = \
             [k for k, v in rpg_classes.items() if v == m.text][0]
-        print(f"{users[uid]['rpg_class'] = }")
+        print(f"{uid = }, {users[uid]['rpg_class'] = }")
 
         show_random_picture(
             m, f"rpg_class_{users[uid]['rpg_class']}", 1, 4,
             "О, это будет круто!")
 
-        # Гик ловкий
+        # Гик ловкий. Для его предмета важно dexterity побольше
         if users[uid]['rpg_class'] == 'geek':
             users[uid]['p_hearing'] = randint(7, 9)
             users[uid]['p_vision'] = randint(6, 8)
             users[uid]['p_dexterity'] = randint(11, 15)
-            users[uid]['p_logic'] = min(20, 38 - randint(1, 2)
-                                        - users[uid]['p_hearing']
-                                        - users[uid]['p_vision']
-                                        - users[uid]['p_dexterity'])
+            users[uid]['p_logic'] = randint(7, 10)
 
         # Отличница зубрит на слух, и на глаз
         if users[uid]['rpg_class'] == 'nerd':
             users[uid]['p_hearing'] = randint(11, 14)
             users[uid]['p_vision'] = randint(12, 15)
             users[uid]['p_dexterity'] = randint(4, 7)
-            users[uid]['p_logic'] = min(20, 36 + randint(1, 2)
-                                        - users[uid]['p_hearing']
-                                        - users[uid]['p_vision']
-                                        - users[uid]['p_dexterity'])
+            users[uid]['p_logic'] = randint(7, 10)
 
         # Лентяй смышлёный, но ленивый ученик. Голова хорошо работает в стрессе.
         if users[uid]['rpg_class'] == 'idler':
             users[uid]['p_hearing'] = randint(5, 8)
             users[uid]['p_vision'] = randint(5, 8)
             users[uid]['p_dexterity'] = randint(6, 9)
-            users[uid]['p_logic'] = min(20, 38 + randint(1, 2)
-                                        - users[uid]['p_hearing']
-                                        - users[uid]['p_vision']
-                                        - users[uid]['p_dexterity'])
+            users[uid]['p_logic'] = randint(13, 18)
 
         normalize_rpg_params(uid)
+
         msg = bot.send_message(
             m.from_user.id,
             f"<b>{rpg_classes[users[uid]['rpg_class']]}</b> "
@@ -305,6 +255,7 @@ def handle_play(m: Message):
     )
     keyboard_select_char.add(*rpg_classes.values())
 
+    # Делаем выбор персонажа, пока не выберет существующего.
     msg = bot.send_message(
         m.from_user.id,
         f"<b>Выбери персонажа!</b>\n\n"
@@ -323,8 +274,7 @@ def handle_change_location(m: Message):
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"{m.text = }")
+    # print(f"{users[uid]['next_location'] = } {m.text = }")
 
     if users[uid]['next_location'] == 'a':
         teacher = choice(teacher_names)
@@ -354,7 +304,7 @@ def handle_change_location(m: Message):
             "Ты с друзьями сидишь в кабинете химии. Как-то само собой "
             "разбились на группы и решили погонять по табличке: глагол на "
             "русском, а в ответ - три формы на английском.\n\n"
-            "С соседних пар слышно: <i>Драться? Файт-Фот-Фот!</i>... "
+            f"С соседних пар слышно: <i>{choice(three_forms)}</i>... "
             "<i>Читать? Рид-Рэд-Рэд</i>...\n\n"
             "С тобой в паре Катя-Кэтрин-Кэт :) Давай штук 20 глаголов "
             "повторим? Если надоест, то можешь закончить после 10.",
@@ -405,26 +355,21 @@ def handle_change_location(m: Message):
             reply_markup=keyboard_continue
         )
         bot.register_next_step_handler(msg, handle_loc_d)
-
-    return
+    # return
 
 
 """ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa """
-
-
 def handle_loc_a(m: Message):
     """Локация a - "Перед школой". Теоретические вопросы"""
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_a")
-    print(f"{m.text = }")
+    # print(f"handle_loc_a {m.text = }")
 
     q_num = users[uid]['q_loc_a']
 
-    # Если конец вопросов этой локации, то записываем rpg в БД и идём дальше.
-    if q_num == len(questions_a):
+    # Если конец вопросов этой локации, то идём дальше.
+    if users[uid]['q_loc_a'] == len(questions_a):
         normalize_rpg_params(uid)
         msg = bot.send_message(
             m.from_user.id,
@@ -445,21 +390,21 @@ def handle_loc_a(m: Message):
         bot.register_next_step_handler(msg, handle_change_location)
         return
 
-    # Если мы только зашли
+    # Если мы только зашли, то мини-опрос.
     if m.text != menu_continue['continue']:
-        print(f"{(q_num - 1) = }")
-        answers_q_num = questions_a[q_num - 1]["a"]
-        print(f"{answers_q_num = }")
+        answers_q_num = questions_a[users[uid]['q_loc_a'] - 1]["a"]
 
         if m.text in answers_q_num:
             answer = answers_q_num[m.text]
-            print(f"{answer =}")
+            # print(f"{answer = }")
             users[uid]['p_hearing'] += answer[0]
             users[uid]['p_vision'] += answer[1]
             users[uid]['p_dexterity'] += answer[2]
             users[uid]['p_logic'] += answer[3]
             bot.reply_to(m, "Внутренний голос: " + answer[4])
 
+    # В этой локации вопросы идут по порядку из словаря questions_a.
+    # Варианты ответа перемешиваются.
     question = questions_a[q_num]
     markup_answers = types.ReplyKeyboardMarkup(
         row_width=1,
@@ -467,10 +412,10 @@ def handle_loc_a(m: Message):
     )
     a = list(map(str, question["a"].keys()))
     shuffle(a)
-    markup_answers.add(*a)
+    markup_answers.add(* a)
 
     q_caption = "<b>Вопрос:</b>\n"
-    if q_num >= len(questions_a) - 1:
+    if users[uid]['q_loc_a'] >= len(questions_a) - 1:
         q_caption = ""
     msg = bot.send_message(
         m.from_user.id,
@@ -484,18 +429,14 @@ def handle_loc_a(m: Message):
 
 
 """ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb """
-
-
 def handle_loc_b(m: Message):
     """Локация b - "Кабинет химии". Теоретические вопросы"""
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_b")
-    print(f"{m.text = }")
+    # print(f"handle_loc_b {m.text = }")
 
-    q_num = users[uid]['q_loc_b']
+    # q_num = users[uid]['q_loc_b']
 
     # Если слишком много вопросов, то записываем rpg в БД и идём дальше.
     if users[uid]['q_num_b'] > 25 or m.text == 'Хватит':
@@ -530,17 +471,16 @@ def handle_loc_b(m: Message):
         bot.register_next_step_handler(msg, handle_change_location)
         return
 
-    # Если многовато вопросов, то предлагаем выйти
-    # Если мы только зашли
+    # Проверяем ответ на предыдущий вопрос, если попали сюда кнопкой Продолжить!
+    # Если только зашли, то задаём первый вопрос.
     if m.text != menu_continue['continue']:
-        print(f"{q_num = }")
-        answers_q_num = verbs[q_num]
-        print(f"{answers_q_num = }")
+        answers_q_num = verbs[users[uid]['q_loc_b']]
+        # print(f"{answers_q_num = }")
 
         # Если правильно ответил, то с некоторой вероятностью +параметры.
         # Считаем правильные ответы, чтобы потом не пустить на экзамен.
         correct_answer = ", ".join(answers_q_num[0:3])
-        mid = m.from_user.id
+        # mid = m.from_user.id
         if m.text == correct_answer:
             users[uid]['q_num_b_ok'] += 1
             bot.reply_to(
@@ -549,16 +489,20 @@ def handle_loc_b(m: Message):
                 parse_mode="HTML")
             if randint(0, 12) == 1:
                 users[uid]['p_hearing'] += 1
-                bot.send_message(mid, "♦️ Слух и слуховая память: +1")
+                bot.send_message(
+                    m.from_user.id, "♦️ Слух и слуховая память: +1")
             if randint(0, 12) == 1:
                 users[uid]['p_vision'] += 1
-                bot.send_message(mid, "♦️ Зрение и зрительная память: +1")
+                bot.send_message(
+                    m.from_user.id, "♦️ Зрение и зрительная память: +1")
             if randint(0, 10) == 1:
                 users[uid]['p_dexterity'] += 1
-                bot.send_message(mid, "♦️ Ловкость и мышечная память: +1")
+                bot.send_message(
+                    m.from_user.id, "♦️ Ловкость и мышечная память: +1")
             if randint(0, 10) == 1:
                 users[uid]['p_logic'] += 1
-                bot.send_message(mid, "♦️ Логическая память: +1")
+                bot.send_message(
+                m.from_user.id, "♦️ Логическая память: +1")
         # Если неправильно ответил,
         else:
             bot.reply_to(
@@ -567,33 +511,36 @@ def handle_loc_b(m: Message):
                 parse_mode="HTML")
             if randint(0, 10) == 1:
                 users[uid]['p_hearing'] -= 1
-                bot.send_message(mid, "⚡️ Слух и слуховая память: -1")
+                bot.send_message(
+                m.from_user.id, "⚡️ Слух и слуховая память: -1")
             if randint(0, 10) == 1:
                 users[uid]['p_vision'] -= 1
-                bot.send_message(mid, "⚡️ Зрение и зрительная память: -1")
+                bot.send_message(
+                m.from_user.id, "⚡️ Зрение и зрительная память: -1")
             if randint(0, 8) == 1:
                 users[uid]['p_dexterity'] -= 1
-                bot.send_message(mid, "⚡️ Ловкость и мышечная память: -1")
+                bot.send_message(
+                m.from_user.id, "⚡️ Ловкость и мышечная память: -1")
             if randint(0, 8) == 1:
                 users[uid]['p_logic'] -= 1
-                bot.send_message(mid, "⚡️ Логическая память: -1")
+                bot.send_message(
+                m.from_user.id, "⚡️ Логическая память: -1")
 
-    # Берём несколько случайных номеров глаголов из таблицы
+    # В этой локации берём несколько случайных номеров глаголов из таблицы
+    # Варианты ответа перемешиваются.
     rnd_verbs = [n for n in range(len(verbs))]
     shuffle(rnd_verbs)
     rnd_verbs = rnd_verbs[0:4]
-    print(f"{rnd_verbs = }")
 
     # Вопрос будет про первый случайный глагол, его номер запомним в q_loc_b.
     users[uid]['q_loc_b'] = rnd_verbs[0]
-    q_num = users[uid]['q_loc_b']
-    verb = verbs[q_num]
+    verb = verbs[users[uid]['q_loc_b']]
     markup_answers = types.ReplyKeyboardMarkup(
         row_width=2,
         resize_keyboard=True
     )
     # Если достаточно много отвечал, то разрешаем выходить
-    # TODO вернуть значение 10
+    # Для отладки вместо 10 можно поставить 1, но потом вернуть 10!
     if users[uid]['q_num_b'] > 10:
         markup_answers.add('Хватит')
 
@@ -602,8 +549,8 @@ def handle_loc_b(m: Message):
     for i in range(4):
         a.append(verbs[rnd_verbs[i]][0:3])
     shuffle(a)
-    print(f"{a =}")
     b = [", ".join(x) for x in a]
+    # print(f"{b = }")
     markup_answers.add(*b)
 
     msg = bot.send_message(
@@ -619,19 +566,12 @@ def handle_loc_b(m: Message):
 
 
 """ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc """
-
-
 def handle_loc_c(m: Message):
-    """Локация c - "Кабинет английского". Теоретические вопросы"""
+    """Локация c - "Кабинет английского". По одной форме назвать другую"""
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_c")
-    print(f"{m.text = }")
-
-    q_num = users[uid]['q_loc_c']
-    print(f"{q_num = }")
+    # print(f"handle_loc_c {m.text = }")
 
     # Если слишком много вопросов, то записываем rpg в БД и идём дальше.
     if users[uid]['q_num_c'] > 25 or m.text == 'Хватит':
@@ -667,9 +607,12 @@ def handle_loc_c(m: Message):
             reply_markup=keyboard_continue
         )
 
-        # Если параметры ненулевые, то идём на экзамен
-        if (users[uid]['p_hearing'] and users[uid]['p_vision'] and
-                users[uid]['p_dexterity'] and users[uid]['p_logic']):
+        # Если все параметры ненулевые, то идём на экзамен
+        if (users[uid]['p_hearing']
+                and users[uid]['p_vision']
+                and users[uid]['p_dexterity']
+                and users[uid]['p_logic']
+        ):
             users[uid]['next_location'] = 'd'
             bot.register_next_step_handler(msg, handle_change_location)
         # иначе ПРОИГРЫШ
@@ -690,38 +633,41 @@ def handle_loc_c(m: Message):
             bot.register_next_step_handler(msg, handle_fail)
         return
 
+    # Если мы только зашли, то задаём вопрос
     # Если многовато вопросов, то предлагаем выйти
-    # Если мы только зашли
     if m.text != menu_continue['continue']:
-        print(f"{q_num = }")
-        answers_q_num = verbs[q_num]
-        print(f"{answers_q_num = }")
+        answers_q_num = verbs[users[uid]['q_loc_c']]
+        # print(f"{answers_q_num = }")
 
         # Если правильно ответил, то с некоторой вероятностью +параметры.
+        # В этой локации и награждаем, и штрафуем сильнее.
         # Считаем правильные ответы, чтобы потом не пустить на экзамен.
-        user_answer = m.text.strip()[0].lower()
         correct_answer = answers_q_num[users[uid]['q_loc_c_a']]
-        full_answer = ", ".join(answers_q_num)
-        print(f"{user_answer = } {correct_answer =}")
-        mid = m.from_user.id
+        full_answer = ", ".join(answers_q_num[0:3]) + "-" + answers_q_num[3]
+        # print(f"{correct_answer =}")
+        # mid = m.from_user.id
         if m.text.lower() == correct_answer:
             users[uid]['q_num_c_ok'] += 1
             bot.reply_to(
                 m, f"<b>Кэт:</b>\n"
                    f"👍🏻 <i>{choice(right_answer)}</i>",
                 parse_mode="HTML")
-            if randint(0, 12) == 1:
+            if randint(0, 11) == 1:
                 users[uid]['p_hearing'] += 2
-                bot.send_message(mid, "♦️♦️ Слух и слуховая память: +2")
-            if randint(0, 12) == 1:
+                bot.send_message(
+                    m.from_user.id, "♦️♦️ Слух и слуховая память: +2")
+            if randint(0, 11) == 1:
                 users[uid]['p_vision'] += 2
-                bot.send_message(mid, "♦️♦️ Зрение и зрительная память: +2")
-            if randint(0, 10) == 1:
+                bot.send_message(
+                    m.from_user.id, "♦️♦️ Зрение и зрительная память: +2")
+            if randint(0, 11) == 1:
                 users[uid]['p_dexterity'] += 2
-                bot.send_message(mid, "♦️♦️ Ловкость и мышечная память: +2")
-            if randint(0, 10) == 1:
+                bot.send_message(
+                    m.from_user.id, "♦️♦️ Ловкость и мышечная память: +2")
+            if randint(0, 11) == 1:
                 users[uid]['p_logic'] += 2
-                bot.send_message(mid, "♦️♦️ Логическая память: +2")
+                bot.send_message(
+                    m.from_user.id, "♦️♦️ Логическая память: +2")
         # Если неправильно ответил,
         else:
             bot.reply_to(
@@ -730,35 +676,37 @@ def handle_loc_c(m: Message):
                    f"Вот все формы этого глагола:\n"
                    f"{full_answer}</i>",
                 parse_mode="HTML")
-            if randint(0, 10) == 1:
+            if randint(0, 12) == 1:
                 users[uid]['p_hearing'] -= 2
-                bot.send_message(mid, "⚡️⚡️ Слух и слуховая память: -2")
-            if randint(0, 10) == 1:
+                bot.send_message(
+                    m.from_user.id, "⚡️⚡️ Слух и слуховая память: -2")
+            if randint(0, 12) == 1:
                 users[uid]['p_vision'] -= 2
-                bot.send_message(mid, "⚡️⚡️ Зрение и зрительная память: -2")
-            if randint(0, 8) == 1:
+                bot.send_message(
+                    m.from_user.id, "⚡️⚡️ Зрение и зрительная память: -2")
+            if randint(0, 12) == 1:
                 users[uid]['p_dexterity'] -= 2
-                bot.send_message(mid, "⚡️⚡️ Ловкость и мышечная память: -2")
-            if randint(0, 8) == 1:
+                bot.send_message(
+                    m.from_user.id, "⚡️⚡️ Ловкость и мышечная память: -2")
+            if randint(0, 12) == 1:
                 users[uid]['p_logic'] -= 2
-                bot.send_message(mid, "⚡️⚡️ Логическая память: -2")
+                bot.send_message(
+                    m.from_user.id, "⚡️⚡️ Логическая память: -2")
 
     # Берём несколько случайных номеров глаголов из таблицы
     rnd_verbs = [n for n in range(len(verbs))]
     shuffle(rnd_verbs)
     rnd_verbs = rnd_verbs[0:4]
-    print(f"{rnd_verbs = }")
 
-    # Вопрос будет про первый случайный глагол, его номер запомним в q_loc_b
+    # Вопрос будет про первый случайный глагол, его номер запомним в q_loc_c
     # а заданную и требуемую форму храним в users.
     users[uid]['q_loc_c'] = rnd_verbs[0]
-    q_num = users[uid]['q_loc_c']
     qa = [0, 1, 2]
     shuffle(qa)
     users[uid]['q_loc_c_q'] = qa[0]
     users[uid]['q_loc_c_a'] = qa[1]
 
-    verb = verbs[q_num]
+    verb = verbs[users[uid]['q_loc_c']]
     markup_answers = types.ReplyKeyboardMarkup(
         row_width=1,
         resize_keyboard=True
@@ -766,7 +714,7 @@ def handle_loc_c(m: Message):
     markup_answers.add('Хватит')
 
     # Если достаточно много отвечал, то разрешаем выходить
-    # TODO вернуть значение 10
+    # Для отладки вместо 10 можно поставить 1, но потом вернуть 10!
     reply_markup_c = hideKeyboard
     if users[uid]['q_num_c'] > 10:
         reply_markup_c = markup_answers
@@ -774,9 +722,9 @@ def handle_loc_c(m: Message):
     msg = bot.send_message(
         m.from_user.id,
         "🤵‍♀️ <b>Кэт:</b>\n"
-        f"<i>У заданного глагола {users[uid]['q_loc_c_q'] + 1} -я форма: "
+        f"<i>У заданного глагола {users[uid]['q_loc_c_q'] + 1}-я форма: "
         f"<b>{verb[users[uid]['q_loc_c_q']]}</b>.\n"
-        f"Какая у него {users[uid]['q_loc_c_a'] + 1} -я форма?</i>\n\n"
+        f"Какая у него {users[uid]['q_loc_c_a'] + 1}-я форма?</i>\n\n"
         f"(ответ напечатай)",
 
         parse_mode="HTML",
@@ -787,26 +735,19 @@ def handle_loc_c(m: Message):
 
 
 """ ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd """
-
-
 def handle_loc_d(m: Message):
     """Локация d - ЗКЗАМЕН! Подводим итоги!"""
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_d")
-    print(f"{m.text = }")
+    # print(f"handle_loc_d {m.text = }")
 
-    print(f"{users[uid]['q_num_b'] = }, "
-          f"{users[uid]['q_num_b_ok'] = }, "
-          f"{users[uid]['q_num_c'] = }, "
-          f"{users[uid]['q_num_c_ok'] = }, "
-          f"")
     # Процент правильных ответов в твух форматах
     res_loc_b = 100 * users[uid]['q_num_b_ok'] // (users[uid]['q_num_b'] - 1)
     res_loc_c = 100 * users[uid]['q_num_c_ok'] // (users[uid]['q_num_c'] - 1)
-    print(f"{res_loc_b = }, {res_loc_c = }")
+    print(f"{users[uid]['q_num_b'] = }, {users[uid]['q_num_b_ok'] = }, "
+          f"{users[uid]['q_num_c'] = }, {users[uid]['q_num_c_ok'] = }, "
+          f"{res_loc_b = }, {res_loc_c = }")
 
     # Если отвечал наугад глаголы, то не пускать на экзамен
     if res_loc_b < 50 and res_loc_c < 50:
@@ -830,7 +771,7 @@ def handle_loc_d(m: Message):
         return
 
     # Ловушка с именем-отчеством преподавателя
-    print(users[uid]['teacher_name'])
+    # print(users[uid]['teacher_name'])
     answer_teachers = [users[uid]['teacher_name']]
     for i in range(5):
         a_teacher = choice(teacher_names)
@@ -844,7 +785,6 @@ def handle_loc_d(m: Message):
         resize_keyboard=True
     )
     shuffle(answer_teachers)
-    print(f"{answer_teachers =}")
     markup_answers.add(*answer_teachers)
 
     bot.send_message(
@@ -879,9 +819,7 @@ def handle_loc_d2(m: Message):
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_d2")
-    print(f"{m.text = }")
+    # print(f"handle_loc_d2 {m.text = }")
 
     # Если не угадал учителя, то выгоняем с экзамена
     if m.text != users[uid]['teacher_name']:
@@ -893,9 +831,10 @@ def handle_loc_d2(m: Message):
 
             parse_mode="HTML",
         )
+
         msg = bot.send_message(
             m.from_user.id,
-            f"Ты рассеянно думаешь: 'странно, ведь <i>Two</i>, "
+            f"Ты рассеянно думаешь: 'Странно, ведь <i>Two</i>, "
             f"а не <i>Два</i>?'\n\n"
             f"Ээх, утром же повторяли и цвет учебника, и имя-отчество "
             f"преподавателя...\n\n"
@@ -908,6 +847,7 @@ def handle_loc_d2(m: Message):
         )
         bot.register_next_step_handler(msg, handle_fail)
         return
+    # Если запомнил и правильно назвал преподавателя, то пускаем дальше.
     else:
         bot.send_message(
             m.from_user.id,
@@ -919,7 +859,8 @@ def handle_loc_d2(m: Message):
             parse_mode="HTML",
             reply_markup=keyboard_continue
         )
-        print(f"{rpg_items = }{users[uid]['rpg_class'] = }")
+
+        # print(f"{rpg_items = } {users[uid]['rpg_class'] = }")
         msg = bot.send_message(
             m.from_user.id,
             f"Свободная парта у окна. Заполнив бланк, ты вспоминаешь о "
@@ -937,13 +878,11 @@ def handle_loc_d2(m: Message):
 
 
 def handle_loc_d3(m: Message):
-    """Проверяем, помнит ли имя-отчество преподавателя"""
+    """Использует или не использует RPG-предмет"""
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_loc_d3")
-    print(f"{m.text = }")
+    # print(f"handle_loc_d3 {m.text = }")
 
     # выбираем ключевой параметр для разных классов:
     key_param = users[uid]['p_vision']
@@ -953,10 +892,12 @@ def handle_loc_d3(m: Message):
         key_param = max(users[uid]['p_hearing'], users[uid]['p_hearing'])
     if users[uid]['rpg_class'] == 'idler':
         key_param = users[uid]['p_logic']
-    print(f"{key_param = }")
+    # print(f"{key_param = }")
 
     # Если согласен использовать RPG-предмет
     if m.text == menu_yes_no['yes']:
+        # Делаем пометку, что предмет использовал.
+        users[uid]['item_is_used'] = 1
         bot.send_message(
             m.from_user.id,
             f"👀 Сердце колотится, пальцы чуть дрожат от волнения... "
@@ -964,7 +905,7 @@ def handle_loc_d3(m: Message):
             f"Проверяющих...",
         )
 
-        # по RPG-классике: кидаем dice d20. Если параметр >= d20, то успех
+        # По RPG-классике: кидаем dice d20. Если параметр >= d20, то успех!
         if key_param >= randint(1, 20):
             msg = bot.send_message(
                 m.from_user.id,
@@ -976,7 +917,7 @@ def handle_loc_d3(m: Message):
             )
             bot.register_next_step_handler(msg, handle_win)
             return
-        # ... Если параметр < d20, то fail
+        # ... Если параметр < d20, то fail!
         else:
             msg = bot.send_message(
                 m.from_user.id,
@@ -988,8 +929,10 @@ def handle_loc_d3(m: Message):
             bot.register_next_step_handler(msg, handle_fail)
             return
 
-    # Если НЕ согласен использовать RPG-предмет
+    # Если НЕ согласен использовать RPG-предмет.
     else:
+        # Делаем пометку, что предмет не использовал.
+        users[uid]['item_is_used'] = 0
         bot.send_message(
             m.from_user.id,
             f"👍🏻 Разумный выбор! Не хочется вылететь с экзамена без "
@@ -998,17 +941,19 @@ def handle_loc_d3(m: Message):
         )
 
         # RPG-классика: кидаем dice d20. Если параметр >= d20, то успех.
-        # Добавим шанс за 100% тренировки с Катей.
+        # Увеличим ключевой параметр за 100% тренировки с Катей.
         bonus_b = users[uid]['q_num_b_ok'] // (users[uid]['q_num_b'] - 1)
         bonus_c = users[uid]['q_num_c_ok'] // (users[uid]['q_num_c'] - 1)
-        print(f"{bonus_b = }, {bonus_c = }")
+        # print(f"{bonus_b = }, {bonus_c = }")
+
+        # Для рандомного списка глаголов в следующей фразе.
         many_verbs = [z for x in verbs for z in x[0:2]]
         shuffle(many_verbs)
 
         if (key_param + bonus_b + bonus_c) >= randint(1, 20):
             msg = bot.send_message(
                 m.from_user.id,
-                f"Длинный список глаголов, как длинная-длинная змея: "
+                f"Длинный список глаголов, как длинный питон: "
                 f"<i>{", ".join(many_verbs[0:100])}</i>... \n\n"
                 f"🤘🏻 А-а-а-а-а! И вот последняя точка! Стоило ли волноваться? "
                 f"Все формы понятны, опечаток нет! Without a doubt, "
@@ -1041,9 +986,15 @@ def handle_win(m: Message):
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_win")
-    print(f"{m.text = }")
+    global db_conn
+    # print(f"handle_win {m.text = }")
+
+    # Запись в таблицу результатов с пометкой Победа.
+    insert_record(
+        db_conn, int(time()),
+        m.from_user.id, m.from_user.first_name,
+        users[uid], 1
+    )
 
     show_random_picture(
         m, "win", 1, 4,
@@ -1069,9 +1020,15 @@ def handle_fail(m: Message):
     uid = m.from_user.id
     check_user(uid)
     global users
-    global db, db_conn, dbc
-    print(f"handle_fail")
-    print(f"{m.text = }")
+    global db_conn
+    # print(f"handle_fail {m.text = }")
+
+    # Запись в таблицу результатов с пометкой Проигрыш.
+    insert_record(
+        db_conn, int(time()),
+        m.from_user.id, m.from_user.first_name,
+        users[uid], 0
+    )
 
     show_random_picture(
         m, "fail", 1, 5,
@@ -1096,11 +1053,7 @@ def handle_fail(m: Message):
 @bot.message_handler(commands=['help'])
 def handle_help(m: Message):
     """Краткая справка"""
-    uid = m.from_user.id
-    check_user(uid)
-    global users
-    global db, db_conn, dbc
-    print(f"{m.text = }")
+    # print(f"handle_help {m.text = }")
 
     bot.send_message(
         m.from_user.id,
@@ -1123,6 +1076,7 @@ def handle_help(m: Message):
     )
 
 
+# Скопипастил чужое решение для перехвата неуместных сообщений
 CONTENT_TYPES = ["text", "audio", "document", "photo", "sticker", "video",
                  "video_note", "voice", "location", "contact",
                  "new_chat_members", "left_chat_member", "new_chat_title",
@@ -1134,9 +1088,10 @@ CONTENT_TYPES = ["text", "audio", "document", "photo", "sticker", "video",
 
 @bot.message_handler(content_types=CONTENT_TYPES)
 def unknown_message(m: Message):
+    """Перехват неуместных сообщений пользователя"""
     bot.send_message(
         m.from_user.id,
-        f"Не понимаю тебя.",
+        f"Не понимаю тебя. Прочитай, что требуется ответить в квесте.",
 
         parse_mode="HTML",
         disable_web_page_preview=True,
