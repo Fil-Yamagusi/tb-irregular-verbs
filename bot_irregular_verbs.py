@@ -201,15 +201,15 @@ def handle_play(m: Message):
 
         # Гик ловкий. Для его предмета важно dexterity побольше
         if users[uid]['rpg_class'] == 'geek':
-            users[uid]['p_hearing'] = randint(7, 9)
+            users[uid]['p_hearing'] = randint(6, 8)
             users[uid]['p_vision'] = randint(6, 8)
-            users[uid]['p_dexterity'] = randint(11, 15)
-            users[uid]['p_logic'] = randint(7, 10)
+            users[uid]['p_dexterity'] = randint(8, 11)
+            users[uid]['p_logic'] = randint(4, 7)
 
         # Отличница зубрит на слух, и на глаз
         if users[uid]['rpg_class'] == 'nerd':
-            users[uid]['p_hearing'] = randint(11, 14)
-            users[uid]['p_vision'] = randint(12, 15)
+            users[uid]['p_hearing'] = randint(7, 11)
+            users[uid]['p_vision'] = randint(6, 10)
             users[uid]['p_dexterity'] = randint(4, 7)
             users[uid]['p_logic'] = randint(7, 10)
 
@@ -218,7 +218,7 @@ def handle_play(m: Message):
             users[uid]['p_hearing'] = randint(5, 8)
             users[uid]['p_vision'] = randint(5, 8)
             users[uid]['p_dexterity'] = randint(6, 9)
-            users[uid]['p_logic'] = randint(13, 18)
+            users[uid]['p_logic'] = randint(7, 12)
 
         normalize_rpg_params(uid)
 
