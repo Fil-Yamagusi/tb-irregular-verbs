@@ -16,6 +16,7 @@ __author__ = 'Firip Yamagusi'
 # Для рандома внутри квеста
 from time import time, strftime
 from random import seed, randint, shuffle, choice
+from os import path
 
 from telebot import TeleBot
 from telebot import types
@@ -33,6 +34,9 @@ from data import rpg_classes, rpg_items
 from data import teacher_names, right_answer, three_forms, spooky
 from data import how, why, friends, caricature
 
+# Нужно для создания относительных путей к картинкам и к БД
+script_dir = path.dirname(__file__)
+
 TOKEN = "6414363219:AAFIznT89_9QZQNWAhFC4UqOqTaCxnZalhU"
 bot_name = "FC: Irregular Verbs Exam | @fil_fc_irregular_verbs_bot"
 # Для понимания в консоли
@@ -49,7 +53,9 @@ seed(time())
 users = {}
 
 # Создаём подключение к базе данных (файл iv_score.db будет создан).
-db_conn = sqlite3.connect('iv_score.db', check_same_thread=False)
+db_conn = sqlite3.connect(
+    path.join(script_dir, 'iv_score.db'),
+    check_same_thread=False)
 
 # Создаём таблицу Users для хранения параметров пользователей
 create_tables(db_conn)
@@ -139,9 +145,11 @@ def normalize_rpg_params(uid: int) -> None:
 def show_random_picture(
         msg: Message, prefix: str, n_from: int, n_to: int, capt: str):
     """Показываем случайную картинку из нескольких для данного случая"""
+    global script_dir
 
     # Было красивее, но python7 masterhost ругается
-    pict = f"pic/{prefix}-" + str(randint(n_from, n_to)) + ".jpg"
+    pict = path.join(script_dir,
+                        f"pic/{prefix}-" + str(randint(n_from, n_to)) + ".jpg")
     with open(pict, 'rb') as pic_file:
         bot.send_photo(
             msg.from_user.id,
