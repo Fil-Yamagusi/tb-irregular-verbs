@@ -129,6 +129,7 @@ def check_user(uid: int, restart=False) -> bool:
         for z in zero_params:
             users[uid][z] = 0
         users[uid]['item_is_used'] = 0
+        users[uid]['result'] = 'DNF'
         return False
 
 
@@ -645,6 +646,7 @@ def handle_loc_c(m: Message):
                 parse_mode="HTML",
                 reply_markup=keyboard_shtosh
             )
+            users[uid]['result'] = 'param_zero_fail'
             bot.register_next_step_handler(msg, handle_fail)
         return
 
@@ -762,6 +764,8 @@ def handle_loc_d(m: Message):
     # Процент правильных ответов в твух форматах
     res_loc_b = 100 * users[uid]['q_num_b_ok'] // (users[uid]['q_num_b'] - 1)
     res_loc_c = 100 * users[uid]['q_num_c_ok'] // (users[uid]['q_num_c'] - 1)
+    users[uid]['res_loc_b'] = res_loc_b
+    users[uid]['res_loc_c'] = res_loc_c
     # {var_name = } is not compatible with 3.7
     # print(f"{users[uid]['q_num_b'] = }, {users[uid]['q_num_b_ok'] = }, "
     #       f"{users[uid]['q_num_c'] = }, {users[uid]['q_num_c_ok'] = }, "
@@ -785,6 +789,7 @@ def handle_loc_d(m: Message):
             parse_mode="HTML",
             reply_markup=keyboard_shtosh
         )
+        users[uid]['result'] = 'perc_low_fail'
         bot.register_next_step_handler(msg, handle_fail)
         return
 
@@ -823,7 +828,7 @@ def handle_loc_d(m: Message):
         "Я не знаю, кто это нарисовал! I do not know who painted it!</i>\n\n"
         f"По улыбкам других учеников ты понимаешь, что это был розыгрыш "
         f"преподавателя. Уууф! Кстати, надо поздороваться!\n\n"
-        f"Здравствуйте, ...",
+        f"Good morning, ...",
 
         parse_mode="HTML",
         reply_markup=markup_answers
@@ -843,7 +848,8 @@ def handle_loc_d2(m: Message):
     if m.text != users[uid]['teacher_name']:
         bot.send_message(
             m.from_user.id,
-            f"Преподаватель: <i>Wha-a-a-at?! I'm not {m.text}! "
+            f"<b>Преподаватель:</b>\n"
+            f"<i>Wha-a-a-at?! I'm not {m.text}! "
             f"My name is {users[uid]['teacher_name']}! "
             f"Вон из класса! Два!</i>",
 
@@ -863,6 +869,7 @@ def handle_loc_d2(m: Message):
             parse_mode="HTML",
             reply_markup=keyboard_shtosh
         )
+        users[uid]['result'] = 'wrong_name_fail'
         bot.register_next_step_handler(msg, handle_fail)
         return
     # Если запомнил и правильно назвал преподавателя, то пускаем дальше.
@@ -933,6 +940,7 @@ def handle_loc_d3(m: Message):
                 parse_mode="HTML",
                 reply_markup=keyboard_continue
             )
+            users[uid]['result'] = 'item_win'
             bot.register_next_step_handler(msg, handle_win)
             return
         # ... Если параметр < d20, то fail!
@@ -944,6 +952,7 @@ def handle_loc_d3(m: Message):
                 parse_mode="HTML",
                 reply_markup=keyboard_shtosh
             )
+            users[uid]['result'] = 'item_fail'
             bot.register_next_step_handler(msg, handle_fail)
             return
 
@@ -982,6 +991,7 @@ def handle_loc_d3(m: Message):
                 parse_mode="HTML",
                 reply_markup=keyboard_continue
             )
+            users[uid]['result'] = 'honestly_win'
             bot.register_next_step_handler(msg, handle_win)
             return
         # ... Если параметр < d20, то fail
@@ -997,6 +1007,7 @@ def handle_loc_d3(m: Message):
                 parse_mode="HTML",
                 reply_markup=keyboard_shtosh
             )
+            users[uid]['result'] = 'honestly_fail'
             bot.register_next_step_handler(msg, handle_fail)
             return
 
@@ -1013,7 +1024,7 @@ def handle_win(m: Message):
     insert_record(
         db_conn, int(time()),
         m.from_user.id, m.from_user.first_name,
-        users[uid], 1
+        users[uid]
     )
 
     show_random_picture(
@@ -1047,7 +1058,7 @@ def handle_fail(m: Message):
     insert_record(
         db_conn, int(time()),
         m.from_user.id, m.from_user.first_name,
-        users[uid], 0
+        users[uid]
     )
 
     show_random_picture(

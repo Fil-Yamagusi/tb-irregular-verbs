@@ -25,8 +25,10 @@ def create_tables(the_db_conn):
             'p_vision INTEGER, '
             'p_dexterity INTEGER, '
             'p_logic INTEGER, '
+            'res_loc_b INTEGER, '
+            'res_loc_c INTEGER, '
             'item_is_used INTEGER, '
-            'success INTEGER'
+            'result TEXT'
             ')'
         )
         the_db_conn.commit()
@@ -38,13 +40,14 @@ def create_tables(the_db_conn):
 # Создаем таблицу для хранения статистики законченных игр
 def insert_record(the_db_conn, the_time: int,
                   user_id: int, user_name: str,
-                  user: list, res: int):
+                  user: list):
     the_dbc = the_db_conn.cursor()
     data = [user_id, user_name,
             the_time, user["rpg_class"],
             user["p_hearing"], user["p_vision"],
             user["p_dexterity"], user["p_logic"],
-            user["item_is_used"], res
+            user["res_loc_b"], user["res_loc_c"],
+            user["item_is_used"], user["result"]
             ]
     try:
         the_dbc.execute("INSERT INTO Finished_Games "
@@ -53,9 +56,10 @@ def insert_record(the_db_conn, the_time: int,
                     "time_finished, rpg_class, "
                     "p_hearing, p_vision, "
                     "p_dexterity, p_logic, "
-                    "item_is_used, success "
+                    "res_loc_b, res_loc_c, "
+                    "item_is_used, result "
                     ") "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         data
                     ))
