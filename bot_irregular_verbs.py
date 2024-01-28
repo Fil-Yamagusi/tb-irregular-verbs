@@ -660,7 +660,7 @@ def handle_loc_c(m: Message):
         # В этой локации и награждаем, и штрафуем сильнее.
         # Считаем правильные ответы, чтобы потом не пустить на экзамен.
         correct_answer = answers_q_num[users[uid]['q_loc_c_a']]
-        full_answer = ", ".join(answers_q_num[0:3]) + "-" + answers_q_num[3]
+        full_answer = ", ".join(answers_q_num[0:3]) + " - " + answers_q_num[3]
         # print(f"{correct_answer =}")
         # mid = m.from_user.id
         if m.text.lower() == correct_answer:
